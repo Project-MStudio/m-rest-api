@@ -21,8 +21,38 @@ yarn start
 
 ## Deploy to Vercel
 
-1. Push this repo to GitHub/GitLab.
-2. In Vercel, **Import** the project (root = `m-rest-api`).
+### GitLab CI/CD → Vercel
+
+Pipeline: **build** on every push/MR; **deploy** to Vercel when CI variables are set (see `.gitlab-ci.yml`).
+
+1. **Vercel:** create/import project `mrestapi` (install: `yarn install`, build: `yarn build`). Add production env vars in the Vercel dashboard if you use Firebase sync.
+2. **Link once locally** (needs [Vercel CLI](https://vercel.com/docs/cli)):
+
+```bash
+cd m-rest-api
+npx vercel link
+```
+
+Copy `orgId` and `projectId` from `.vercel/project.json` (do not commit that folder).
+
+3. **GitLab** → Project → **Settings → CI/CD → Variables** (masked, protected for production):
+
+| Variable | Description |
+|----------|-------------|
+| `VERCEL_TOKEN` | [Account token](https://vercel.com/account/settings/tokens) |
+| `VERCEL_ORG_ID` | From `.vercel/project.json` → `orgId` |
+| `VERCEL_PROJECT_ID` | From `.vercel/project.json` → `projectId` |
+
+Vercel CLI reads `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` from these variable names automatically.
+
+4. Push to `main` → pipeline runs `build`, then `deploy:production`. Merge requests get `build` + manual **deploy:preview** (optional).
+
+Without `VERCEL_TOKEN`, only the **build** job runs (useful for verifying CI before linking Vercel).
+
+### Manual import (no GitLab deploy)
+
+1. Push this repo to GitLab.
+2. In Vercel, **Import** the GitLab project (root = repo root).
 3. Install command: `yarn install`. Build command: `yarn build` (defaults work).
 4. (Optional) For cloud sync, add the public Firebase env vars below. **Without them the login button is hidden and the app runs fully local — no env vars required.**
 

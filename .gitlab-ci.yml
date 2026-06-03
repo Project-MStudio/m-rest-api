@@ -1,0 +1,93 @@
+# GitLab CI/CD — build on every push/MR, deploy to Vercel when VERCEL_* vars are set.
+# Setup: README.md → "GitLab CI/CD → Vercel"
+
+stages:
+  - build
+  - deploy
+
+variables:
+  NODE_VERSION: "22"
+  YARN_CACHE_FOLDER: .yarn/cache
+  NEXT_TELEMETRY_DISABLED: "1"
+
+default:
+  image: node:${NODE_VERSION}-bookworm-slim
+
+.yarn_cache: &yarn_cache
+  key:
+    files:
+      - yarn.lock
+  paths:
+    - node_modules/
+    - .yarn/cache/
+
+.install_deps:
+  before_script:
+    - corepack enable
+    - yarn config set cache-folder "$YARN_CACHE_FOLDER"
+    - yarn install --frozen-lockfile --prefer-offline
+
+.deploy_base:
+  extends: .install_deps
+  stage: deploy
+  needs: [build]
+  cache: *yarn_cache
+  before_script:
+    - corepack enable
+    - yarn config set cache-folder "$YARN_CACHE_FOLDER"
+    - yarn install --frozen-lockfile --prefer-offline
+    - npm install -g vercel@latest
+
+build:
+  extends: .install_deps
+  stage: build
+  cache: *yarn_cache
+  script:
+    - yarn build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH
+
+deploy:preview:
+  extends: .deploy_base
+  script:
+    - vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+    - vercel build --token="$VERCEL_TOKEN"
+    - |
+      DEPLOY_URL=$(vercel deploy --prebuilt --token="$VERCEL_TOKEN")
+      echo "Preview URL: $DEPLOY_URL"
+      echo "VERCEL_URL=$DEPLOY_URL" >> deploy.env
+  artifacts:
+    reports:
+      dotenv: deploy.env
+  environment:
+    name: preview/$CI_COMMIT_REF_SLUG
+    url: $VERCEL_URL
+    auto_stop_in: 7 days
+  rules:
+    - if: '$VERCEL_TOKEN == ""'
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+      allow_failure: true
+
+deploy:production:
+  extends: .deploy_base
+  script:
+    - vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+    - vercel build --prod --token="$VERCEL_TOKEN"
+    - |
+      DEPLOY_URL=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+      echo "Production URL: $DEPLOY_URL"
+      echo "VERCEL_URL=$DEPLOY_URL" >> deploy.env
+  artifacts:
+    reports:
+      dotenv: deploy.env
+  environment:
+    name: production
+    url: $VERCEL_URL
+  rules:
+    - if: '$VERCEL_TOKEN == ""'
+      when: never
+    - if: $CI_COMMIT_BRANCH == "main"

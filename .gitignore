@@ -33,7 +33,7 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
-# vercel
+# vercel (link locally; IDs live in GitLab CI/CD variables)
 .vercel
 
 # typescript
