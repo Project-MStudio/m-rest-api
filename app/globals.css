@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Only truly-global rules live here; everything else is Tailwind utilities. */
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    @apply bg-bg text-gray-200 antialiased;
+    color-scheme: dark;
+  }
+  /* Thin dark scrollbars to match the theme. */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(94, 232, 146, 0.2);
+    border-radius: 4px;
+  }
+}
