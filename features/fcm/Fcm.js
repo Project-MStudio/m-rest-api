@@ -8,6 +8,7 @@ import { runServer } from '@lib/http/client'
 import { EVENT_TYPES } from '@lib/fcm/eventTypes'
 import { extractMatchId, DECODE_URL, DECODE_USER_AGENT } from './decode'
 import useLogs, { nowStamp } from '@features/workspace/useLogs'
+import { loadFcmDomain, saveFcmDomain } from '@lib/storage/fcmPrefs'
 
 /** The sample FCM body, pre-filled into the editable textarea. */
 const SAMPLE_BODY = JSON.stringify(
@@ -35,6 +36,7 @@ const SAMPLE_BODY = JSON.stringify(
  */
 export default function Fcm() {
   const [domain, setDomain] = useState('')
+  const [domainHydrated, setDomainHydrated] = useState(false)
   const [matchCode, setMatchCode] = useState('')
   const [version, setVersion] = useState('v1')
   const [matchId, setMatchId] = useState('')
@@ -45,6 +47,17 @@ export default function Fcm() {
   const decodeAbortRef = useRef(null)
 
   const sendPath = `/api/${version}/fcm/send`
+
+  // Restore domain from localStorage on mount; persist only after hydration.
+  useEffect(() => {
+    setDomain(loadFcmDomain())
+    setDomainHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!domainHydrated) return
+    saveFcmDomain(domain)
+  }, [domain, domainHydrated])
 
   // Decode through the proxy with the required User-Agent (browser can't set it).
   const decode = useCallback(
