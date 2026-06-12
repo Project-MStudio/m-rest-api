@@ -6,6 +6,7 @@ import CollectionSidebar from '@components/CollectionSidebar'
 import Workspace from '@features/workspace/Workspace'
 import Fcm from '@features/fcm/Fcm'
 import { toCurl } from '@lib/http/curl'
+import { fromPostmanCollection } from '@lib/http/postman'
 import * as storage from '@lib/storage'
 import { isFirebaseConfigured, signIn, signOutUser, onAuth } from '@lib/fcm/auth'
 
@@ -66,9 +67,18 @@ export default function Home() {
     reader.onload = () => {
       try {
         const parsed = JSON.parse(reader.result)
-        // Accept our export shape {version, collections:[...]}.
-        const map = {}
-        for (const col of parsed.collections || []) map[col.name] = col
+        // Detect a Postman v2.1 collection and route it through the converter;
+        // otherwise accept our own export shape {version, collections:[...]}.
+        const isPostman =
+          parsed.info?.schema?.includes('collection') ||
+          (parsed.info && Array.isArray(parsed.item))
+        let map
+        if (isPostman) {
+          map = fromPostmanCollection(parsed)
+        } else {
+          map = {}
+          for (const col of parsed.collections || []) map[col.name] = col
+        }
         storage.importMap(map)
         refresh()
       } catch (e) {
